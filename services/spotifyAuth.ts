@@ -27,47 +27,57 @@ export class SpotifyAuthService {
   })
 
   static async login(): Promise<SpotifyTokens | null> {
-    try {
-      const result = await this.request.promptAsync(discovery)
-
-      console.log("[v0] Auth result:", result)
-
-      if (result.type === "success" && result.params.code) {
-        const tokens = await this.exchangeCodeForTokens(result.params.code)
-        await this.saveTokens(tokens)
-        return tokens
-      }
-
-      return null
-    } catch (error) {
-      console.error("[v0] Spotify login error:", error)
-      return null
-    }
-  }
-
-  private static async exchangeCodeForTokens(code: string): Promise<SpotifyTokens> {
-    const response = await fetch(SPOTIFY_CONFIG.tokenEndpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        grant_type: "authorization_code",
-        code,
-        redirect_uri: AuthSession.makeRedirectUri({ scheme: "neurotune" }),
-        client_id: SPOTIFY_CONFIG.clientId,
-      }).toString(),
+  try {
+    const request = new AuthSession.AuthRequest({
+      clientId: SPOTIFY_CONFIG.clientId,
+      scopes: SPOTIFY_CONFIG.scopes,
+      redirectUri: AuthSession.makeRedirectUri({ scheme: "neurotune" }),
+      responseType: AuthSession.ResponseType.Code,
     })
 
-    const data = await response.json()
-    console.log("[v0] Exchange code response:", data)
+    const result = await request.promptAsync(discovery)
 
-    if (!data.access_token) throw new Error("No access token returned from Spotify")
+    console.log("[v0] Auth result:", result)
 
-    return {
-      accessToken: data.access_token,
-      refreshToken: data.refresh_token,
-      expiresAt: Date.now() + data.expires_in * 1000,
+    if (result.type === "success" && result.params.code) {
+      const tokens = await this.exchangeCodeForTokens(result.params.code, request.codeVerifier!)
+      await this.saveTokens(tokens)
+      return tokens
     }
+
+    return null
+  } catch (error) {
+    console.error("[v0] Spotify login error:", error)
+    return null
   }
+}
+
+
+  private static async exchangeCodeForTokens(code: string, codeVerifier: string): Promise<SpotifyTokens> {
+  const response = await fetch(SPOTIFY_CONFIG.tokenEndpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "authorization_code",
+      code,
+      redirect_uri: AuthSession.makeRedirectUri({ scheme: "neurotune" }),
+      client_id: SPOTIFY_CONFIG.clientId,
+      code_verifier: codeVerifier,
+    }).toString(),
+  })
+
+  const data = await response.json()
+  console.log("[v0] Exchange code response:", data)
+
+  if (!data.access_token) throw new Error("No access token returned from Spotify")
+
+  return {
+    accessToken: data.access_token,
+    refreshToken: data.refresh_token,
+    expiresAt: Date.now() + data.expires_in * 1000,
+  }
+}
+
 
   static async refreshAccessToken(refreshToken: string): Promise<SpotifyTokens | null> {
     try {
