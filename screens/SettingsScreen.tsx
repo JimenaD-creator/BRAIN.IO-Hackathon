@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
+import BrainwaveMonitor from "../components/BrainwaveMonitor"
 
 export default function SettingsScreen() {
   const [autoPlay, setAutoPlay] = useState(true)
@@ -17,6 +18,7 @@ export default function SettingsScreen() {
           <Text style={styles.title}>Ajustes</Text>
           <Text style={styles.subtitle}>Configura tu experiencia</Text>
         </View>
+
 
         {/* Device section */}
         <View style={styles.section}>

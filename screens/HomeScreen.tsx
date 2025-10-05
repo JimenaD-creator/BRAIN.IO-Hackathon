@@ -49,7 +49,7 @@ export default function HomeScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>NeuroTune</Text>
-          <Text style={styles.subtitle}>Música controlada por tu mente</Text>
+          <Text style={styles.subtitle}>Music for your mind</Text>
         </View>
 
         {/* Brain visualization */}
@@ -58,10 +58,10 @@ export default function HomeScreen() {
         {/* Spotify login card */}
         {!isAuthenticated && (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Conectar Spotify</Text>
-            <Text style={styles.cardDescription}>Conecta tu cuenta para controlar la música</Text>
+            <Text style={styles.cardTitle}>Connect to Spotify</Text>
+            <Text style={styles.cardDescription}>Connect to your account</Text>
             <TouchableOpacity style={styles.spotifyButton} onPress={handleSpotifyConnect}>
-              <Text style={styles.buttonText}>Conectar con Spotify</Text>
+              <Text style={styles.buttonText}>Connect to Spotify</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -71,19 +71,19 @@ export default function HomeScreen() {
           <View style={styles.statusRow}>
             <View style={[styles.statusDot, isConnected && styles.statusDotConnected]} />
             <Text style={styles.statusText}>
-              {isConnected ? "Dispositivo conectado" : "Dispositivo no conectado"}
+              {isConnected ? "Device connected" : "Device not connected"}
             </Text>
           </View>
           <TouchableOpacity style={styles.button} onPress={handleConnectEEG}>
-            <Text style={styles.buttonText}>{isConnected ? "Desconectar EEG" : "Conectar EEG"}</Text>
+            <Text style={styles.buttonText}>{isConnected ? "Disconnect EEG" : "Connect EEG"}</Text>
           </TouchableOpacity>
         </View>
 
         {/* Mood selector */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Estado Mental</Text>
+          <Text style={styles.cardTitle}>Mood</Text>
           <Text style={styles.cardDescription}>
-            {currentPlaylist ? `Playlist: ${currentPlaylist}` : "Selecciona un estado mental"}
+            {currentPlaylist ? `Playlist: ${currentPlaylist}` : "Select your level of energy"}
           </Text>
           <View style={styles.moodButtons}>
             {(["focus", "chill", "energy"] as MoodType[]).map((mood) => (
@@ -103,7 +103,7 @@ export default function HomeScreen() {
         {/* Playback controls */}
         {isAuthenticated && currentTrack && (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Reproduciendo</Text>
+            <Text style={styles.cardTitle}>Playing</Text>
             <Text style={styles.cardDescription}>{currentTrack.name} — {currentTrack.artist}</Text>
             <View style={styles.controlsRow}>
               <TouchableOpacity onPress={skipToPrevious} style={styles.controlButton}>
@@ -124,17 +124,17 @@ export default function HomeScreen() {
           <View style={styles.statCard}>
             <Text style={styles.statValue}>12</Text>
             <Text style={styles.statUnit}>Hz</Text>
-            <Text style={styles.statLabel}>Frecuencia</Text>
+            <Text style={styles.statLabel}>Frequency</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>85</Text>
             <Text style={styles.statUnit}>%</Text>
-            <Text style={styles.statLabel}>Calidad</Text>
+            <Text style={styles.statLabel}>Quality</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>23</Text>
             <Text style={styles.statUnit}>min</Text>
-            <Text style={styles.statLabel}>Sesión</Text>
+            <Text style={styles.statLabel}>Session</Text>
           </View>
         </View>
       </ScrollView>

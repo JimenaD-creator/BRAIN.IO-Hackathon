@@ -44,8 +44,8 @@ export default function PlaylistScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>No hay música reproduciéndose</Text>
-          <Text style={styles.emptyText}>Inicia la reproducción desde Spotify</Text>
+          <Text style={styles.emptyTitle}>No music is being reproduced</Text>
+          <Text style={styles.emptyText}>Start to play music on Spotify</Text>
         </View>
       </SafeAreaView>
     )
@@ -57,8 +57,8 @@ export default function PlaylistScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Reproduciendo</Text>
-          <Text style={styles.subtitle}>Conectado a Spotify</Text>
+          <Text style={styles.title}>Reproducing</Text>
+          <Text style={styles.subtitle}>Connected to Spotify</Text>
         </View>
 
         <View style={styles.albumContainer}>
@@ -97,7 +97,7 @@ export default function PlaylistScreen() {
 
         {/* Queue Section */}
         <View style={styles.queueSection}>
-          <Text style={styles.queueTitle}>Próximas canciones</Text>
+          <Text style={styles.queueTitle}>Next songs</Text>
           {queue.length > 0 ? (
             queue.map((track, index) => (
               <View key={`${track.id}-${index}`} style={styles.queueItem}>
@@ -123,8 +123,8 @@ export default function PlaylistScreen() {
             ))
           ) : (
             <View style={styles.emptyQueue}>
-              <Text style={styles.emptyQueueText}>No hay canciones en la cola</Text>
-              <Text style={styles.emptyQueueSubtext}>Reproduce una playlist para ver las próximas canciones</Text>
+              <Text style={styles.emptyQueueText}>No songs in queue</Text>
+              <Text style={styles.emptyQueueSubtext}></Text>
             </View>
           )}
         </View>

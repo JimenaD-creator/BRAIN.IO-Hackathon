@@ -2,12 +2,12 @@ import { NavigationContainer } from "@react-navigation/native"
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs"
 import { StatusBar } from "expo-status-bar"
 import { View } from "react-native"
+import BrainwaveMonitor from "./screens/BrainwaveMonitor"
 
 // Import screens
 import HomeScreen from "./screens/HomeScreen"
 import PlaylistScreen from "./screens/PlaylistScreen"
 import SettingsScreen from "./screens/SettingsScreen"
-
 // Import types
 import type { MainTabParamList } from "./navigation/types"
 
@@ -64,6 +64,17 @@ export default function App() {
           <Tab.Screen
             name="Settings"
             component={SettingsScreen}
+            options={{
+              tabBarLabel: "Ajustes",
+              tabBarIcon: SettingsIcon,
+            }}
+          />
+
+          
+
+          <Tab.Screen
+            name="Navs"
+            component={BrainwaveMonitor}
             options={{
               tabBarLabel: "Ajustes",
               tabBarIcon: SettingsIcon,

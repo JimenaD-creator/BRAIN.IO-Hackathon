@@ -12,17 +12,17 @@ interface BrainStateDisplayProps {
 const moodConfig = {
   focus: {
     color: "#06b6d4",
-    label: "Enfocado",
+    label: "Focus",
     emoji: "🎯",
   },
   chill: {
     color: "#ec4899",
-    label: "Relajado",
+    label: "Relax",
     emoji: "🌊",
   },
   energy: {
     color: "#f59e0b",
-    label: "Energético",
+    label: "Energy",
     emoji: "⚡",
   },
 }
@@ -69,7 +69,7 @@ export default function BrainStateDisplay({ state, intensity = 75 }: BrainStateD
 
       {/* State label */}
       <Text style={[styles.label, { color: config.color }]}>{config.label}</Text>
-      <Text style={styles.intensity}>{intensity}% intensidad</Text>
+      <Text style={styles.intensity}>{intensity}% intensity</Text>
     </View>
   )
 }
