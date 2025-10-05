@@ -3,8 +3,6 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs"
 import { StatusBar } from "expo-status-bar"
 import { View } from "react-native"
 
-
-
 // Import screens
 import HomeScreen from "./screens/HomeScreen"
 import PlaylistScreen from "./screens/PlaylistScreen"

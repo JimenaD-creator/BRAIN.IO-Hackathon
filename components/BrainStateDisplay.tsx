@@ -1,3 +1,4 @@
+"use client"
 
 import { useEffect, useRef } from "react"
 import { View, Text, StyleSheet, Animated } from "react-native"
@@ -56,21 +57,19 @@ export default function BrainStateDisplay({ state, intensity = 75 }: BrainStateD
           styles.circle,
           {
             backgroundColor: config.color,
-            opacity: 0.2, 
+            opacity: 0.2,
             transform: [{ scale: pulseAnim }],
           },
         ]}
       />
       <View style={[styles.circle, { backgroundColor: config.color, opacity: 0.4 }]} />
-      <View style={[styles.innerCircle, { backgroundColor: config.color, opacity:1 }]}>
-        <Text style={[styles.label, { color: '#ffffff' }]}>{config.label}</Text>
-        <Text style={styles.intensity}>{intensity}% intensidad</Text>
-
-
+      <View style={[styles.innerCircle, { backgroundColor: config.color }]}>
+        <Text style={styles.emoji}>{config.emoji}</Text>
       </View>
 
       {/* State label */}
-      
+      <Text style={[styles.label, { color: config.color }]}>{config.label}</Text>
+      <Text style={styles.intensity}>{intensity}% intensidad</Text>
     </View>
   )
 }
@@ -80,19 +79,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: 32,
-    marginTop: 35
   },
   circle: {
     position: "absolute",
     width: 200,
     height: 200,
     borderRadius: 100,
-    
   },
   innerCircle: {
-    width: 150,
-    height: 150,
-    borderRadius: 90,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -102,11 +99,11 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 24,
     fontWeight: "bold",
-    marginTop: 18,
+    marginTop: 24,
   },
   intensity: {
     fontSize: 14,
-    color: "#ffffff",
-    marginTop: 7,
+    color: "#9ca3af",
+    marginTop: 8,
   },
 })

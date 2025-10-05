@@ -1,16 +1,37 @@
 "use client"
 
-import { useState } from "react"
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView } from "react-native"
+import { useState, useEffect } from "react"
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-native"
+import { SafeAreaView } from "react-native-safe-area-context"
 import BrainStateDisplay from "../components/BrainStateDisplay"
+import { useSpotify } from "../hooks/useSpotify"
 import type { MoodType } from "../types"
 
 export default function HomeScreen() {
   const [isConnected, setIsConnected] = useState(false)
-  const [currentMood, setCurrentMood] = useState<MoodType>("energy")
+  const [currentMood, setCurrentMood] = useState<MoodType>("focus")
 
-  const handleConnect = () => {
-    setIsConnected(!isConnected)
+  const {
+    isAuthenticated,
+    login,
+    currentTrack,
+    isPlaying,
+    togglePlayback,
+    skipToNext,
+    skipToPrevious,
+    changeMoodPlaylist,
+  } = useSpotify()
+
+  // Cambiar playlist cuando el mood o la conexión cambien
+  useEffect(() => {
+    if (isAuthenticated && isConnected) {
+      changeMoodPlaylist(currentMood)
+    }
+  }, [currentMood, isAuthenticated, isConnected])
+
+  const handleConnectEEG = () => setIsConnected(!isConnected)
+  const handleSpotifyConnect = async () => {
+    if (!isAuthenticated) await login()
   }
 
   return (
@@ -22,19 +43,69 @@ export default function HomeScreen() {
           <Text style={styles.subtitle}>Música controlada por tu mente</Text>
         </View>
 
-        {/* Brain state visualization */}
+        {/* Brain visualization */}
         <BrainStateDisplay state={currentMood} intensity={75} />
 
-        {/* Connection status */}
+        {/* Spotify login card */}
+        {!isAuthenticated && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Conectar Spotify</Text>
+            <Text style={styles.cardDescription}>Conecta tu cuenta para controlar la música</Text>
+            <TouchableOpacity style={styles.spotifyButton} onPress={handleSpotifyConnect}>
+              <Text style={styles.buttonText}>Conectar con Spotify</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* EEG connection status */}
         <View style={styles.card}>
           <View style={styles.statusRow}>
             <View style={[styles.statusDot, isConnected && styles.statusDotConnected]} />
-            <Text style={styles.statusText}>{isConnected ? "Dispositivo conectado" : "Dispositivo no conectado"}</Text>
+            <Text>
+              {isConnected ? "Dispositivo conectado" : "Dispositivo no conectado"}
+            </Text>
           </View>
-          <TouchableOpacity style={styles.button} onPress={handleConnect}>
-            <Text style={styles.buttonText}>{isConnected ? "Desconectar" : "Conectar EEG"}</Text>
+          <TouchableOpacity style={styles.button} onPress={handleConnectEEG}>
+            <Text style={styles.buttonText}>{isConnected ? "Desconectar EEG" : "Conectar EEG"}</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Mood selector */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Estado Mental</Text>
+          <View style={styles.moodButtons}>
+            {(["focus", "chill", "energy"] as MoodType[]).map((mood) => (
+              <TouchableOpacity
+                key={mood}
+                style={[styles.moodButton, currentMood === mood && styles.moodButtonActive]}
+                onPress={() => setCurrentMood(mood)}
+              >
+                <Text style={styles.moodButtonText}>
+                  {mood === "focus" ? "🎯 Focus" : mood === "chill" ? "😌 Chill" : "⚡ Energy"}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* Playback controls */}
+        {isAuthenticated && currentTrack && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Reproduciendo</Text>
+            <Text style={styles.cardDescription}>{currentTrack.name} — {currentTrack.artist}</Text>
+            <View style={styles.controlsRow}>
+              <TouchableOpacity onPress={skipToPrevious} style={styles.controlButton}>
+                <Text style={styles.controlIcon}>⏮</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={togglePlayback} style={styles.playButton}>
+                <Text style={styles.playIcon}>{isPlaying ? "⏸" : "▶"}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={skipToNext} style={styles.controlButton}>
+                <Text style={styles.controlIcon}>⏭</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         {/* Stats */}
         <View style={styles.statsGrid}>
@@ -60,94 +131,32 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#111827",
-  },
-  scrollContent: {
-    paddingBottom: 32,
-  },
-  header: {
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#374151",
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#f9fafb",
-  },
-  subtitle: {
-    fontSize: 14,
-    color: "#9ca3af",
-    marginTop: 4,
-  },
-  card: {
-    backgroundColor: "#1f2937",
-    marginHorizontal: 24,
-    marginTop: 24,
-    padding: 24,
-    borderRadius: 16,
-  },
-  statusRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-  },
-  statusDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "#6b7280",
-    marginRight: 8,
-  },
-  statusDotConnected: {
-    backgroundColor: "#10b981",
-  },
-  statusText: {
-    fontSize: 14,
-    color: "#9ca3af",
-  },
-  button: {
-    backgroundColor: "#06b6d4",
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  buttonText: {
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  statsGrid: {
-    flexDirection: "row",
-    paddingHorizontal: 24,
-    marginTop: 24,
-    gap: 12,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: "#1f2937",
-    padding: 16,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  statValue: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#06b6d4",
-  },
-  statUnit: {
-    fontSize: 12,
-    color: "#9ca3af",
-    marginTop: 2,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: "#9ca3af",
-    marginTop: 8,
-  },
+  container: { flex: 1, backgroundColor: "#111827" },
+  scrollContent: { paddingBottom: 32 },
+  header: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: "#374151" },
+  title: { fontSize: 28, fontWeight: "bold", color: "#f9fafb" },
+  subtitle: { fontSize: 14, color: "#9ca3af", marginTop: 4 },
+  card: { backgroundColor: "#1f2937", marginHorizontal: 24, marginTop: 24, padding: 24, borderRadius: 16 },
+  cardTitle: { fontSize: 18, fontWeight: "600", color: "#f9fafb", marginBottom: 8 },
+  cardDescription: { fontSize: 14, color: "#9ca3af", marginBottom: 16 },
+  spotifyButton: { backgroundColor: "#1db954", paddingVertical: 16, borderRadius: 12, alignItems: "center" },
+  button: { backgroundColor: "#06b6d4", paddingVertical: 16, borderRadius: 12, alignItems: "center" },
+  buttonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  statusRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginBottom: 16 },
+  statusDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: "#6b7280", marginRight: 8 },
+  statusDotConnected: { backgroundColor: "#10b981" },
+  moodButtons: { flexDirection: "row", gap: 8, marginTop: 12 },
+  moodButton: { flex: 1, backgroundColor: "#374151", paddingVertical: 12, borderRadius: 8, alignItems: "center" },
+  moodButtonActive: { backgroundColor: "#06b6d4" },
+  moodButtonText: { fontSize: 14, color: "#f9fafb" },
+  controlsRow: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 24, marginTop: 16 },
+  controlButton: { width: 56, height: 56, borderRadius: 28, backgroundColor: "#1f2937", alignItems: "center", justifyContent: "center" },
+  controlIcon: { fontSize: 24 },
+  playButton: { width: 72, height: 72, borderRadius: 36, backgroundColor: "#06b6d4", alignItems: "center", justifyContent: "center" },
+  playIcon: { fontSize: 32, color: "#fff" },
+  statsGrid: { flexDirection: "row", paddingHorizontal: 24, marginTop: 24, gap: 12 },
+  statCard: { flex: 1, backgroundColor: "#1f2937", padding: 16, borderRadius: 12, alignItems: "center" },
+  statValue: { fontSize: 28, fontWeight: "bold", color: "#06b6d4" },
+  statUnit: { fontSize: 12, color: "#9ca3af", marginTop: 2 },
+  statLabel: { fontSize: 12, color: "#9ca3af", marginTop: 8 },
 })
