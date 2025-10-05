@@ -1,13 +1,24 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react" // Añade useState si no está
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { useSpotify } from "../hooks/useSpotify"
 
 export default function PlaylistScreen() {
-  const { isAuthenticated, currentTrack, isPlaying, togglePlayback, skipToNext, skipToPrevious, refreshTrack } =
-    useSpotify()
+  const { 
+    isAuthenticated, 
+    currentTrack, 
+    isPlaying, 
+    togglePlayback, 
+    skipToNext, 
+    skipToPrevious, 
+    refreshTrack,
+    queue 
+  } = useSpotify()
+
+  // Mueve todos los hooks al inicio, sin condiciones
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -15,8 +26,9 @@ export default function PlaylistScreen() {
       const interval = setInterval(refreshTrack, 5000)
       return () => clearInterval(interval)
     }
-  }, [isAuthenticated])
+  }, [isAuthenticated, refreshTrack])
 
+  // Renderizado condicional al final, no en medio de hooks
   if (!isAuthenticated) {
     return (
       <SafeAreaView style={styles.container}>
@@ -39,6 +51,7 @@ export default function PlaylistScreen() {
     )
   }
 
+  // El resto del componente permanece igual...
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -63,7 +76,7 @@ export default function PlaylistScreen() {
           <Text style={styles.artistName}>{currentTrack.artist}</Text>
         </View>
 
-        {/* Progress bar - simplified for now */}
+        {/* Progress bar */}
         <View style={styles.progressContainer}>
           <View style={styles.progressBar}>
             <View style={[styles.progressFill, { width: "45%" }]} />
@@ -81,11 +94,46 @@ export default function PlaylistScreen() {
             <Text style={styles.controlIcon}>⏭</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Queue Section */}
+        <View style={styles.queueSection}>
+          <Text style={styles.queueTitle}>Próximas canciones</Text>
+          {queue.length > 0 ? (
+            queue.map((track, index) => (
+              <View key={`${track.id}-${index}`} style={styles.queueItem}>
+                {track.imageUrl ? (
+                  <Image source={{ uri: track.imageUrl }} style={styles.queueArt} />
+                ) : (
+                  <View style={styles.queueArtPlaceholder}>
+                    <Text style={styles.queuePlaceholder}>🎵</Text>
+                  </View>
+                )}
+                <View style={styles.queueInfo}>
+                  <Text style={styles.queueTrackName} numberOfLines={1}>
+                    {track.name}
+                  </Text>
+                  <Text style={styles.queueArtistName} numberOfLines={1}>
+                    {track.artist}
+                  </Text>
+                </View>
+                <Text style={styles.queueNumber}>
+                  {index + 1}
+                </Text>
+              </View>
+            ))
+          ) : (
+            <View style={styles.emptyQueue}>
+              <Text style={styles.emptyQueueText}>No hay canciones en la cola</Text>
+              <Text style={styles.emptyQueueSubtext}>Reproduce una playlist para ver las próximas canciones</Text>
+            </View>
+          )}
+        </View>
       </ScrollView>
     </SafeAreaView>
   )
 }
 
+// Los estilos permanecen igual...
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -208,5 +256,73 @@ const styles = StyleSheet.create({
   playIcon: {
     fontSize: 32,
     color: "#ffffff",
+  },
+  queueSection: {
+    marginTop: 48,
+    paddingHorizontal: 24,
+  },
+  queueTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#f9fafb",
+    marginBottom: 16,
+  },
+  queueItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#1f2937",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  queueArt: {
+    width: 40,
+    height: 40,
+    borderRadius: 4,
+  },
+  queueArtPlaceholder: {
+    width: 40,
+    height: 40,
+    backgroundColor: "#374151",
+    borderRadius: 4,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  queuePlaceholder: {
+    fontSize: 16,
+  },
+  queueInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  queueTrackName: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#f9fafb",
+  },
+  queueArtistName: {
+    fontSize: 12,
+    color: "#9ca3af",
+    marginTop: 2,
+  },
+  queueNumber: {
+    fontSize: 14,
+    color: "#6b7280",
+    marginLeft: 8,
+  },
+  emptyQueue: {
+    padding: 24,
+    alignItems: "center",
+  },
+  emptyQueueText: {
+    fontSize: 14,
+    color: "#6b7280",
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  emptyQueueSubtext: {
+    fontSize: 12,
+    color: "#6b7280",
+    textAlign: "center",
   },
 })

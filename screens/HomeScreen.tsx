@@ -1,4 +1,4 @@
-"use client"
+// screens/HomeScreen.tsx
 
 import { useState, useEffect } from "react"
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-native"
@@ -20,18 +20,27 @@ export default function HomeScreen() {
     skipToNext,
     skipToPrevious,
     changeMoodPlaylist,
+    currentPlaylist,
   } = useSpotify()
 
-  // Cambiar playlist cuando el mood o la conexión cambien
+  // Cambiar playlist cuando el mood cambie (sin necesidad de conectar EEG)
   useEffect(() => {
-    if (isAuthenticated && isConnected) {
+    if (isAuthenticated) {
       changeMoodPlaylist(currentMood)
     }
-  }, [currentMood, isAuthenticated, isConnected])
+  }, [currentMood, isAuthenticated])
 
   const handleConnectEEG = () => setIsConnected(!isConnected)
   const handleSpotifyConnect = async () => {
     if (!isAuthenticated) await login()
+  }
+
+  const handleMoodChange = (mood: MoodType) => {
+    setCurrentMood(mood)
+    // No esperar al useEffect - cambiar inmediatamente
+    if (isAuthenticated) {
+      changeMoodPlaylist(mood)
+    }
   }
 
   return (
@@ -61,7 +70,7 @@ export default function HomeScreen() {
         <View style={styles.card}>
           <View style={styles.statusRow}>
             <View style={[styles.statusDot, isConnected && styles.statusDotConnected]} />
-            <Text>
+            <Text style={styles.statusText}>
               {isConnected ? "Dispositivo conectado" : "Dispositivo no conectado"}
             </Text>
           </View>
@@ -73,12 +82,15 @@ export default function HomeScreen() {
         {/* Mood selector */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Estado Mental</Text>
+          <Text style={styles.cardDescription}>
+            {currentPlaylist ? `Playlist: ${currentPlaylist}` : "Selecciona un estado mental"}
+          </Text>
           <View style={styles.moodButtons}>
             {(["focus", "chill", "energy"] as MoodType[]).map((mood) => (
               <TouchableOpacity
                 key={mood}
                 style={[styles.moodButton, currentMood === mood && styles.moodButtonActive]}
-                onPress={() => setCurrentMood(mood)}
+                onPress={() => handleMoodChange(mood)}
               >
                 <Text style={styles.moodButtonText}>
                   {mood === "focus" ? "🎯 Focus" : mood === "chill" ? "😌 Chill" : "⚡ Energy"}
@@ -145,6 +157,7 @@ const styles = StyleSheet.create({
   statusRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginBottom: 16 },
   statusDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: "#6b7280", marginRight: 8 },
   statusDotConnected: { backgroundColor: "#10b981" },
+  statusText: { color: "#f9fafb", fontSize: 14 },
   moodButtons: { flexDirection: "row", gap: 8, marginTop: 12 },
   moodButton: { flex: 1, backgroundColor: "#374151", paddingVertical: 12, borderRadius: 8, alignItems: "center" },
   moodButtonActive: { backgroundColor: "#06b6d4" },

@@ -76,6 +76,86 @@ export class SpotifyApiService {
     }
   }
 
+  // services/spotifyApi.ts
+
+// Añade estos métodos a tu SpotifyApiService:
+
+static async getCurrentPlaylistTracks(): Promise<SpotifyTrack[]> {
+  try {
+    const playback = await this.fetchWithAuth("/me/player")
+    
+    if (!playback || !playback.context || playback.context.type !== 'playlist') {
+      return []
+    }
+
+    const playlistId = playback.context.uri.split(':')[2]
+    const data = await this.fetchWithAuth(`/playlists/${playlistId}/tracks?limit=50`)
+    
+    if (!data || !data.items) return []
+
+    // Encontrar la canción actual en la playlist
+    const currentTrackId = playback.item?.id
+    let currentTrackIndex = -1
+    
+    if (currentTrackId) {
+      currentTrackIndex = data.items.findIndex((item: any) => 
+        item.track && item.track.id === currentTrackId
+      )
+    }
+
+    // Si no encontramos la canción actual, mostrar las primeras 3
+    if (currentTrackIndex === -1) {
+      return data.items.slice(0, 3).map((item: any) => this.mapTrack(item.track))
+    }
+
+    // Obtener las próximas 3 canciones después de la actual
+    const nextTracks = data.items.slice(
+      Math.max(0, currentTrackIndex + 1), 
+      Math.min(data.items.length, currentTrackIndex + 4)
+    )
+    
+    return nextTracks.map((item: any) => this.mapTrack(item.track))
+    
+  } catch (error) {
+    console.error("Error getting current playlist tracks:", error)
+    return []
+  }
+}
+
+// Helper method para mapear tracks
+private static mapTrack(track: any): SpotifyTrack {
+  return {
+    id: track.id,
+    name: track.name,
+    artist: track.artists[0]?.name || "Unknown",
+    album: track.album.name,
+    duration: track.duration_ms,
+    imageUrl: track.album.images[0]?.url || "",
+    previewUrl: track.preview_url,
+  }
+}
+
+static async getPlaylistTracks(playlistId: string): Promise<SpotifyTrack[]> {
+  try {
+    const data = await this.fetchWithAuth(`/playlists/${playlistId}/tracks?limit=10`)
+    
+    if (!data || !data.items) return []
+
+    return data.items.slice(0, 3).map((item: any) => ({
+      id: item.track.id,
+      name: item.track.name,
+      artist: item.track.artists[0]?.name || "Unknown",
+      album: item.track.album.name,
+      duration: item.track.duration_ms,
+      imageUrl: item.track.album.images[0]?.url || "",
+      previewUrl: item.track.preview_url,
+    }))
+  } catch (error) {
+    console.error("Error getting playlist tracks:", error)
+    return []
+  }
+}
+
   static async getCurrentUser() {
     return this.fetchWithAuth("/me")
   }
@@ -144,28 +224,55 @@ export class SpotifyApiService {
     }
   }
 
-  static async getPlaylistsForMood(mood: MoodType): Promise<SpotifyPlaylist[]> {
-    try {
-      const moodQueries: Record<MoodType, string> = {
-        focus: "focus study concentration",
-        chill: "chill relax ambient",
-        energy: "workout energy motivation",
-      }
-      const query = moodQueries[mood]
-      const data = await this.fetchWithAuth(`/search?q=${encodeURIComponent(query)}&type=playlist&limit=10`)
+  // En SpotifyApiService.ts - corrige getPlaylistsForMood
+static async getPlaylistsForMood(mood: MoodType): Promise<SpotifyPlaylist[]> {
+  try {
+    const moodQueries: Record<MoodType, string> = {
+      focus: "focus study concentration",
+      chill: "chill relax ambient",
+      energy: "workout energy motivation",
+    }
+    const query = moodQueries[mood]
+    const data = await this.fetchWithAuth(`/search?q=${encodeURIComponent(query)}&type=playlist&limit=10`)
 
-      return data.playlists.items.map((item: any) => ({
+    // Filtra los items nulos antes de mapear
+    return data.playlists.items
+      .filter((item: any) => item !== null && item.id) // Filtra items nulos
+      .map((item: any) => ({
         id: item.id,
         name: item.name,
         description: item.description || "",
         tracks: [],
-        imageUrl: item.images[0]?.url || "",
+        imageUrl: item.images?.[0]?.url || "", // Usa optional chaining
       }))
-    } catch (error) {
-      console.error("Error getting playlists:", error)
-      return []
-    }
+  } catch (error) {
+    console.error("Error getting playlists:", error)
+    return []
   }
+}
+
+  // Add this method to your SpotifyApiService class
+
+static async getQueue(): Promise<SpotifyTrack[]> {
+  try {
+    const data = await this.fetchWithAuth("/me/player/queue")
+    
+    if (!data || !data.queue) return []
+
+    return data.queue.slice(0, 3).map((item: any) => ({
+      id: item.id,
+      name: item.name,
+      artist: item.artists[0]?.name || "Unknown",
+      album: item.album.name,
+      duration: item.duration_ms,
+      imageUrl: item.album.images[0]?.url || "",
+      previewUrl: item.preview_url,
+    }))
+  } catch (error) {
+    console.error("Error getting queue:", error)
+    return []
+  }
+}
 
   static async playPlaylist(playlistUri: string) {
     try {
