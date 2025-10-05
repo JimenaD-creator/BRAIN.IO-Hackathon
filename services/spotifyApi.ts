@@ -3,24 +3,77 @@ import { SpotifyAuthService } from "./spotifyAuth"
 import type { SpotifyTrack, SpotifyPlaylist, MoodType } from "../types"
 
 export class SpotifyApiService {
-  private static async fetchWithAuth(endpoint: string, options: RequestInit = {}) {
+  
+  private static async fetchWithAuth(endpoint: string, options: RequestInit = {}, retries = 3): Promise<any> {
     const token = await SpotifyAuthService.getValidToken()
-    if (!token) throw new Error("No valid token - Please login to Spotify first")
 
-    const response = await fetch(`${SPOTIFY_API_BASE}${endpoint}`, {
-      ...options,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
-    })
+    if (!token) {
+      throw new Error("No valid token - Please login to Spotify first")
+    }
 
-    if (response.status === 204) return null // Evita error JSON vacío
-    if (response.status === 401) throw new Error("No valid token - Session expired")
-    if (!response.ok) throw new Error(`Spotify API error: ${response.status}`)
+    for (let attempt = 0; attempt < retries; attempt++) {
+      try {
+        const response = await fetch(`${SPOTIFY_API_BASE}${endpoint}`, {
+          ...options,
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+            ...options.headers,
+          },
+        })
 
-    return response.json()
+        if (response.status === 401) {
+          throw new Error("No valid token - Session expired")
+        }
+
+        // Handle rate limiting
+        if (response.status === 429) {
+          const retryAfter = response.headers.get('Retry-After') || '1'
+          const waitTime = parseInt(retryAfter) * 1000
+          console.warn(`Rate limited. Waiting ${retryAfter} seconds...`)
+          await new Promise(resolve => setTimeout(resolve, waitTime))
+          continue // Retry the request
+        }
+
+        if (!response.ok && response.status !== 204) {
+          throw new Error(`Spotify API error: ${response.status} ${response.statusText}`)
+        }
+
+        // For 204 No Content responses, return null immediately
+        if (response.status === 204) {
+          return null
+        }
+
+        // Check if response is JSON before parsing
+        const contentType = response.headers.get('content-type')
+        if (!contentType || !contentType.includes('application/json')) {
+          // For successful non-JSON responses, return the text
+          const text = await response.text()
+          if (response.ok) {
+            return text || null
+          }
+          throw new Error(`Unexpected response format: ${text.substring(0, 50)}`)
+        }
+
+        return await response.json()
+
+      } catch (error) {
+        console.error(`Attempt ${attempt + 1} failed:`, error)
+        
+        // If it's the last attempt, throw the error
+        if (attempt === retries - 1) {
+          if (error instanceof Error) {
+            throw error
+          }
+          throw new Error('Unknown error occurred while contacting Spotify API')
+        }
+
+        // Wait before retrying (exponential backoff)
+        const waitTime = 1000 * Math.pow(2, attempt)
+        console.log(`Retrying in ${waitTime}ms...`)
+        await new Promise(resolve => setTimeout(resolve, waitTime))
+      }
+    }
   }
 
   static async getCurrentUser() {
@@ -62,18 +115,33 @@ export class SpotifyApiService {
 
   static async togglePlayback(play: boolean) {
     const endpoint = play ? "/me/player/play" : "/me/player/pause"
-    try { await this.fetchWithAuth(endpoint, { method: "PUT" }) }
-    catch (error) { console.error("Error toggling playback:", error) }
+    try { 
+      await this.fetchWithAuth(endpoint, { method: "PUT" }) 
+    } catch (error) { 
+      console.error("Error toggling playback:", error) 
+    }
   }
 
   static async skipToNext() {
-    try { await this.fetchWithAuth("/me/player/next", { method: "POST" }) }
-    catch (error) { console.error("Error skipping track:", error) }
+    try { 
+      await this.fetchWithAuth("/me/player/next", { method: "POST" }) 
+    } catch (error) { 
+      // Only log errors that aren't related to successful empty responses
+      if (error instanceof Error && !error.message.includes("Unexpected response format")) {
+        console.error("Error skipping track:", error) 
+      }
+    }
   }
 
   static async skipToPrevious() {
-    try { await this.fetchWithAuth("/me/player/previous", { method: "POST" }) }
-    catch (error) { console.error("Error going to previous track:", error) }
+    try { 
+      await this.fetchWithAuth("/me/player/previous", { method: "POST" }) 
+    } catch (error) { 
+      // Only log errors that aren't related to successful empty responses
+      if (error instanceof Error && !error.message.includes("Unexpected response format")) {
+        console.error("Error going to previous track:", error) 
+      }
+    }
   }
 
   static async getPlaylistsForMood(mood: MoodType): Promise<SpotifyPlaylist[]> {
@@ -107,6 +175,17 @@ export class SpotifyApiService {
       })
     } catch (error) {
       console.error("Error playing playlist:", error)
+    }
+  }
+
+  // Additional utility method to check if Spotify is available
+  static async checkSpotifyAvailability(): Promise<boolean> {
+    try {
+      await this.fetchWithAuth("/me", {}, 1) // Quick check with 1 retry
+      return true
+    } catch (error) {
+      console.error("Spotify unavailable:", error)
+      return false
     }
   }
 }
