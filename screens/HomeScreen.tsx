@@ -5,12 +5,13 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-nati
 import { SafeAreaView } from "react-native-safe-area-context"
 import BrainStateDisplay from "../components/BrainStateDisplay"
 import { useSpotify } from "../hooks/useSpotify"
-import { useBrainwaves } from "../hooks/useBrainwaves"   // ✅ NEW IMPORT
 import type { MoodType } from "../types"
 
 export default function HomeScreen() {
   const [isConnected, setIsConnected] = useState(false)
   const [currentMood, setCurrentMood] = useState<MoodType>("focus")
+  const [brainwaveData, setBrainwaveData] = useState<any>(null)
+  const [autoMode, setAutoMode] = useState(true)
 
   const {
     isAuthenticated,
@@ -24,49 +25,82 @@ export default function HomeScreen() {
     currentPlaylist,
   } = useSpotify()
 
-  // ✅ EEG data (only fetched when EEG is connected)
-  const { data: brainData } = useBrainwaves(isConnected)
+  // Función para obtener datos EEG del servidor
+  const fetchBrainwaveData = async () => {
+    try {
+      const response = await fetch("http://10.43.85.125:8000/brainwaves")
+      if (response.ok) {
+        const data = await response.json()
+        setBrainwaveData(data)
+      }
+    } catch (error) {
+      console.log("EEG server not available, using manual mode")
+    }
+  }
 
-  // ✅ Manual mood change (default behavior)
+  // Función para determinar el estado de ánimo basado en las bandas cerebrales
+  const determineMoodFromBrainwaves = (data: any): MoodType => {
+    if (!data) return "focus"
+    
+    const { delta, theta, alpha, beta, gamma } = data
+    
+    // Según tus especificaciones:
+    // Focus - Beta y Gamma de 13-100 Hz
+    // Energy - Beta y Alpha de 8 a 30 Hz  
+    // Chill - Alpha y Theta de 4 a 13 Hz
+    
+    // Calcular scores para cada estado usando los rangos específicos
+    const focusScore = beta + gamma      // 13-100 Hz
+    const energyScore = beta + alpha     // 8-30 Hz  
+    const chillScore = alpha + theta     // 4-13 Hz
+    
+    // Encontrar el estado con mayor score
+    const scores = {
+      focus: focusScore,
+      energy: energyScore,
+      chill: chillScore
+    }
+    
+    const maxMood = Object.keys(scores).reduce((a, b) => 
+      scores[a as MoodType] > scores[b as MoodType] ? a : b
+    ) as MoodType
+    
+    console.log(`🧠 EEG Scores - Focus: ${focusScore.toFixed(2)}, Energy: ${energyScore.toFixed(2)}, Chill: ${chillScore.toFixed(2)} -> ${maxMood}`)
+    
+    return maxMood
+  }
+
+  // Obtener datos EEG cada 2 segundos
   useEffect(() => {
-    if (isAuthenticated) {
+    fetchBrainwaveData()
+    const interval = setInterval(fetchBrainwaveData, 2000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Actualizar estado de ánimo automáticamente cuando lleguen nuevos datos EEG
+  useEffect(() => {
+    if (autoMode && brainwaveData && isAuthenticated) {
+      const detectedMood = determineMoodFromBrainwaves(brainwaveData)
+      
+      if (detectedMood !== currentMood) {
+        console.log(`🎵 Cambiando automáticamente a: ${detectedMood}`)
+        setCurrentMood(detectedMood)
+        changeMoodPlaylist(detectedMood)
+      }
+    }
+  }, [brainwaveData, autoMode, isAuthenticated])
+
+  // Cambiar playlist cuando el mood cambie manualmente
+  useEffect(() => {
+    if (isAuthenticated && !autoMode) {
       changeMoodPlaylist(currentMood)
     }
-  }, [currentMood, isAuthenticated])
-
-  // EEG Auto Selector
-  useEffect(() => {
-    if (!isConnected || !brainData) return;
-
-    const interval = setInterval(() => {
-      const { alpha, beta, gamma, theta, concentration} = brainData;
-      const dominant = Math.max(alpha, beta, theta);
-
-      let newMood: MoodType = currentMood;
-
-      if (concentration < 0) newMood = "chill";
-      else if (concentration < 0.5) newMood = "energy";
-      else newMood = "focus";
-      /*
-      if (dominant === beta) newMood = "focus";
-      else if (dominant === alpha) newMood = "energy";
-      else if (dominant === theta) newMood = "chill";
-      */
-
-      if (newMood !== currentMood) {
-        console.log(`🧠 Auto mood switch (20s interval): ${newMood}`);
-        setCurrentMood(newMood);
-        if (isAuthenticated) changeMoodPlaylist(newMood);
-      }
-    }, 20000);// 20 seconds
-
-    return () => clearInterval(interval);
-  }, [brainData, isConnected]);
-
+  }, [currentMood, isAuthenticated, autoMode])
 
   const handleConnectEEG = () => {
-    setIsConnected((prev) => !prev)
-    console.log(`🔌 EEG ${!isConnected ? "connected" : "disconnected"}`)
+    const newConnectionState = !isConnected
+    setIsConnected(newConnectionState)
+    setAutoMode(newConnectionState) // Activar auto mode cuando se conecta EEG
   }
 
   const handleSpotifyConnect = async () => {
@@ -75,9 +109,38 @@ export default function HomeScreen() {
 
   const handleMoodChange = (mood: MoodType) => {
     setCurrentMood(mood)
-    if (isAuthenticated) {
-      changeMoodPlaylist(mood)
+    // El cambio de playlist se maneja en el useEffect
+  }
+
+  // Calcular intensidad para BrainStateDisplay
+  const calculateIntensity = () => {
+    if (!brainwaveData || !autoMode) return 75
+    
+    // Usar la concentración o calcular intensidad basada en bandas
+    if (brainwaveData.concentration) {
+      return Math.min(brainwaveData.concentration * 100, 100)
     }
+    
+    // Calcular intensidad basada en la dominancia del estado actual
+    const { delta, theta, alpha, beta, gamma } = brainwaveData
+    const totalPower = delta + theta + alpha + beta + gamma
+    
+    if (totalPower === 0) return 75
+    
+    let currentBandPower = 0
+    switch (currentMood) {
+      case "focus":
+        currentBandPower = beta + gamma
+        break
+      case "energy":
+        currentBandPower = beta + alpha  
+        break
+      case "chill":
+        currentBandPower = alpha + theta
+        break
+    }
+    
+    return Math.min((currentBandPower / totalPower) * 100, 100)
   }
 
   return (
@@ -86,11 +149,16 @@ export default function HomeScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>NeuroTune</Text>
-          <Text style={styles.subtitle}>Music for your mind</Text>
+          <Text style={styles.subtitle}>
+            {autoMode ? "Music controlled by your mind" : "Music for your mind"}
+          </Text>
         </View>
 
         {/* Brain visualization */}
-        <BrainStateDisplay state={currentMood} intensity={75} />
+        <BrainStateDisplay 
+          state={currentMood} 
+          intensity={calculateIntensity()} 
+        />
 
         {/* Spotify login card */}
         {!isAuthenticated && (
@@ -108,7 +176,7 @@ export default function HomeScreen() {
           <View style={styles.statusRow}>
             <View style={[styles.statusDot, isConnected && styles.statusDotConnected]} />
             <Text style={styles.statusText}>
-              {isConnected ? "Device connected" : "Device not connected"}
+              {isConnected ? "EEG Connected - Auto Mode" : "EEG Not Connected - Manual Mode"}
             </Text>
           </View>
           <TouchableOpacity style={styles.button} onPress={handleConnectEEG}>
@@ -118,38 +186,37 @@ export default function HomeScreen() {
 
         {/* Mood selector */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Mood</Text>
+          <Text style={styles.cardTitle}>Mental State</Text>
           <Text style={styles.cardDescription}>
-            {currentPlaylist ? `Playlist: ${currentPlaylist}` : "Select your level of energy"}
+            {currentPlaylist ? `Playing: ${currentPlaylist}` : "Select your mental state"}
+            {autoMode && " • Auto-detecting from brainwaves"}
           </Text>
           <View style={styles.moodButtons}>
             {(["focus", "chill", "energy"] as MoodType[]).map((mood) => (
               <TouchableOpacity
                 key={mood}
-                style={[styles.moodButton, currentMood === mood && styles.moodButtonActive]}
+                style={[
+                  styles.moodButton, 
+                  currentMood === mood && styles.moodButtonActive,
+                  autoMode && currentMood === mood && styles.moodButtonAutoActive
+                ]}
                 onPress={() => handleMoodChange(mood)}
-                disabled={isConnected} // ✅ Disable manual changes when EEG active
               >
                 <Text style={styles.moodButtonText}>
                   {mood === "focus" ? "🎯 Focus" : mood === "chill" ? "😌 Chill" : "⚡ Energy"}
+                  {autoMode && currentMood === mood && " 🔄"}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
-          {isConnected && (
-            <Text style={{ color: "#9ca3af", fontSize: 12, marginTop: 8, textAlign: "center" }}>
-              Auto mode active (based on EEG)
-            </Text>
-          )}
         </View>
 
         {/* Playback controls */}
         {isAuthenticated && currentTrack && (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Playing</Text>
-            <Text style={styles.cardDescription}>
-              {currentTrack.name} — {currentTrack.artist}
-            </Text>
+            <Text style={styles.cardTitle}>Now Playing</Text>
+            <Text style={styles.trackName}>{currentTrack.name}</Text>
+            <Text style={styles.artistName}>{currentTrack.artist}</Text>
             <View style={styles.controlsRow}>
               <TouchableOpacity onPress={skipToPrevious} style={styles.controlButton}>
                 <Text style={styles.controlIcon}>⏮</Text>
@@ -168,20 +235,24 @@ export default function HomeScreen() {
         <View style={styles.statsGrid}>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>
-              {brainData ? Math.max(brainData.alpha, brainData.beta, brainData.gamma, brainData.theta).toFixed(2) : "--"}
+              {brainwaveData ? (brainwaveData.beta * 10).toFixed(0) : "12"}
             </Text>
             <Text style={styles.statUnit}>Hz</Text>
-            <Text style={styles.statLabel}>Dominant Wave</Text>
+            <Text style={styles.statLabel}>Beta Wave</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statValue}>85</Text>
+            <Text style={styles.statValue}>
+              {brainwaveData ? (brainwaveData.concentration * 100).toFixed(0) : "85"}
+            </Text>
             <Text style={styles.statUnit}>%</Text>
-            <Text style={styles.statLabel}>Quality</Text>
+            <Text style={styles.statLabel}>Focus</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statValue}>23</Text>
-            <Text style={styles.statUnit}>min</Text>
-            <Text style={styles.statLabel}>Session</Text>
+            <Text style={styles.statValue}>
+              {autoMode ? "AUTO" : "MAN"}
+            </Text>
+            <Text style={styles.statUnit}>Mode</Text>
+            <Text style={styles.statLabel}>Control</Text>
           </View>
         </View>
       </ScrollView>
@@ -198,6 +269,8 @@ const styles = StyleSheet.create({
   card: { backgroundColor: "#1f2937", marginHorizontal: 24, marginTop: 24, padding: 24, borderRadius: 16 },
   cardTitle: { fontSize: 18, fontWeight: "600", color: "#f9fafb", marginBottom: 8 },
   cardDescription: { fontSize: 14, color: "#9ca3af", marginBottom: 16 },
+  trackName: { fontSize: 16, fontWeight: "600", color: "#f9fafb", textAlign: "center" },
+  artistName: { fontSize: 14, color: "#9ca3af", textAlign: "center", marginBottom: 16 },
   spotifyButton: { backgroundColor: "#1db954", paddingVertical: 16, borderRadius: 12, alignItems: "center" },
   button: { backgroundColor: "#06b6d4", paddingVertical: 16, borderRadius: 12, alignItems: "center" },
   buttonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
@@ -206,17 +279,30 @@ const styles = StyleSheet.create({
   statusDotConnected: { backgroundColor: "#10b981" },
   statusText: { color: "#f9fafb", fontSize: 14 },
   moodButtons: { flexDirection: "row", gap: 8, marginTop: 12 },
-  moodButton: { flex: 1, backgroundColor: "#374151", paddingVertical: 12, borderRadius: 8, alignItems: "center" },
-  moodButtonActive: { backgroundColor: "#06b6d4" },
+  moodButton: { 
+    flex: 1, 
+    backgroundColor: "#374151", 
+    paddingVertical: 12, 
+    borderRadius: 8, 
+    alignItems: "center" 
+  },
+  moodButtonActive: { 
+    backgroundColor: "#06b6d4" 
+  },
+  moodButtonAutoActive: { 
+    backgroundColor: "#10b981",
+    borderWidth: 2,
+    borderColor: "#34d399"
+  },
   moodButtonText: { fontSize: 14, color: "#f9fafb" },
   controlsRow: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 24, marginTop: 16 },
   controlButton: { width: 56, height: 56, borderRadius: 28, backgroundColor: "#1f2937", alignItems: "center", justifyContent: "center" },
-  controlIcon: { fontSize: 24 },
+  controlIcon: { fontSize: 24, color: "#f9fafb" },
   playButton: { width: 72, height: 72, borderRadius: 36, backgroundColor: "#06b6d4", alignItems: "center", justifyContent: "center" },
   playIcon: { fontSize: 32, color: "#fff" },
   statsGrid: { flexDirection: "row", paddingHorizontal: 24, marginTop: 24, gap: 12 },
   statCard: { flex: 1, backgroundColor: "#1f2937", padding: 16, borderRadius: 12, alignItems: "center" },
-  statValue: { fontSize: 28, fontWeight: "bold", color: "#06b6d4" },
+  statValue: { fontSize: 24, fontWeight: "bold", color: "#06b6d4" },
   statUnit: { fontSize: 12, color: "#9ca3af", marginTop: 2 },
   statLabel: { fontSize: 12, color: "#9ca3af", marginTop: 8 },
 })

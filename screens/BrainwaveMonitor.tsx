@@ -1,7 +1,9 @@
+// components/BrainwaveMonitor.tsx
+
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 
-export type BrainwaveData = {
+type BrainwaveData = {
   delta: number;
   theta: number;
   alpha: number;
@@ -10,7 +12,12 @@ export type BrainwaveData = {
   concentration: number;
 };
 
-export default function BrainwaveMonitor() {
+// Agregar la interfaz para las props
+interface BrainwaveMonitorProps {
+  onDataUpdate?: (data: BrainwaveData | null) => void;
+}
+
+export default function BrainwaveMonitor({ onDataUpdate }: BrainwaveMonitorProps) {
   const [data, setData] = useState<BrainwaveData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,6 +43,11 @@ export default function BrainwaveMonitor() {
       if (json && typeof json.delta === 'number') {
         setData(json as BrainwaveData);
         setError(null);
+        
+        // ✅ Llamar al callback si existe
+        if (onDataUpdate) {
+          onDataUpdate(json as BrainwaveData);
+        }
       } else {
         throw new Error("Invalid data format");
       }
@@ -44,14 +56,21 @@ export default function BrainwaveMonitor() {
       setError(error instanceof Error ? error.message : "Unknown error");
       
       // Datos de ejemplo para debugging
-      setData({
+      const sampleData = {
         delta: 1.5,
         theta: 1.2,
         alpha: 1.8,
         beta: 2.1,
         gamma: 0.9,
         concentration: 0.7
-      });
+      };
+      
+      setData(sampleData);
+      
+      // ✅ Llamar al callback con datos de ejemplo si existe
+      if (onDataUpdate) {
+        onDataUpdate(sampleData);
+      }
     } finally {
       setLoading(false);
     }
