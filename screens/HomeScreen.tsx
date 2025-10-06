@@ -5,6 +5,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-nati
 import { SafeAreaView } from "react-native-safe-area-context"
 import BrainStateDisplay from "../components/BrainStateDisplay"
 import { useSpotify } from "../hooks/useSpotify"
+import { useBrainwaves } from "../hooks/useBrainwaves"   // ✅ NEW IMPORT
 import type { MoodType } from "../types"
 
 export default function HomeScreen() {
@@ -23,21 +24,57 @@ export default function HomeScreen() {
     currentPlaylist,
   } = useSpotify()
 
-  // Cambiar playlist cuando el mood cambie (sin necesidad de conectar EEG)
+  // ✅ EEG data (only fetched when EEG is connected)
+  const { data: brainData } = useBrainwaves(isConnected)
+
+  // ✅ Manual mood change (default behavior)
   useEffect(() => {
     if (isAuthenticated) {
       changeMoodPlaylist(currentMood)
     }
   }, [currentMood, isAuthenticated])
 
-  const handleConnectEEG = () => setIsConnected(!isConnected)
+  // EEG Auto Selector
+  useEffect(() => {
+    if (!isConnected || !brainData) return;
+
+    const interval = setInterval(() => {
+      const { alpha, beta, gamma, theta, concentration} = brainData;
+      const dominant = Math.max(alpha, beta, theta);
+
+      let newMood: MoodType = currentMood;
+
+      if (concentration < 0) newMood = "chill";
+      else if (concentration < 0.5) newMood = "energy";
+      else newMood = "focus";
+      /*
+      if (dominant === beta) newMood = "focus";
+      else if (dominant === alpha) newMood = "energy";
+      else if (dominant === theta) newMood = "chill";
+      */
+
+      if (newMood !== currentMood) {
+        console.log(`🧠 Auto mood switch (20s interval): ${newMood}`);
+        setCurrentMood(newMood);
+        if (isAuthenticated) changeMoodPlaylist(newMood);
+      }
+    }, 20000);// 20 seconds
+
+    return () => clearInterval(interval);
+  }, [brainData, isConnected]);
+
+
+  const handleConnectEEG = () => {
+    setIsConnected((prev) => !prev)
+    console.log(`🔌 EEG ${!isConnected ? "connected" : "disconnected"}`)
+  }
+
   const handleSpotifyConnect = async () => {
     if (!isAuthenticated) await login()
   }
 
   const handleMoodChange = (mood: MoodType) => {
     setCurrentMood(mood)
-    // No esperar al useEffect - cambiar inmediatamente
     if (isAuthenticated) {
       changeMoodPlaylist(mood)
     }
@@ -91,6 +128,7 @@ export default function HomeScreen() {
                 key={mood}
                 style={[styles.moodButton, currentMood === mood && styles.moodButtonActive]}
                 onPress={() => handleMoodChange(mood)}
+                disabled={isConnected} // ✅ Disable manual changes when EEG active
               >
                 <Text style={styles.moodButtonText}>
                   {mood === "focus" ? "🎯 Focus" : mood === "chill" ? "😌 Chill" : "⚡ Energy"}
@@ -98,13 +136,20 @@ export default function HomeScreen() {
               </TouchableOpacity>
             ))}
           </View>
+          {isConnected && (
+            <Text style={{ color: "#9ca3af", fontSize: 12, marginTop: 8, textAlign: "center" }}>
+              Auto mode active (based on EEG)
+            </Text>
+          )}
         </View>
 
         {/* Playback controls */}
         {isAuthenticated && currentTrack && (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Playing</Text>
-            <Text style={styles.cardDescription}>{currentTrack.name} — {currentTrack.artist}</Text>
+            <Text style={styles.cardDescription}>
+              {currentTrack.name} — {currentTrack.artist}
+            </Text>
             <View style={styles.controlsRow}>
               <TouchableOpacity onPress={skipToPrevious} style={styles.controlButton}>
                 <Text style={styles.controlIcon}>⏮</Text>
@@ -122,9 +167,11 @@ export default function HomeScreen() {
         {/* Stats */}
         <View style={styles.statsGrid}>
           <View style={styles.statCard}>
-            <Text style={styles.statValue}>12</Text>
+            <Text style={styles.statValue}>
+              {brainData ? Math.max(brainData.alpha, brainData.beta, brainData.gamma, brainData.theta).toFixed(2) : "--"}
+            </Text>
             <Text style={styles.statUnit}>Hz</Text>
-            <Text style={styles.statLabel}>Frequency</Text>
+            <Text style={styles.statLabel}>Dominant Wave</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>85</Text>

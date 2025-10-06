@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 
-type BrainwaveData = {
+export type BrainwaveData = {
   delta: number;
   theta: number;
   alpha: number;
