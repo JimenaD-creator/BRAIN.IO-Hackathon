@@ -62,17 +62,6 @@ export default function App() {
             }}
           />
           <Tab.Screen
-            name="Settings"
-            component={SettingsScreen}
-            options={{
-              tabBarLabel: "Ajustes",
-              tabBarIcon: SettingsIcon,
-            }}
-          />
-
-          
-
-          <Tab.Screen
             name="Navs"
             component={BrainwaveMonitor}
             options={{
