@@ -5,21 +5,12 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-nati
 import { SafeAreaView } from "react-native-safe-area-context"
 import BrainStateDisplay from "../components/BrainStateDisplay"
 import { useSpotify } from "../hooks/useSpotify"
-import { useHeadGesture } from "../hooks/useHeadGesture"
 import type { MoodType } from "../types"
 
 export default function HomeScreen() {
   const [isConnected, setIsConnected] = useState(false)
   const [currentMood, setCurrentMood] = useState<MoodType>("focus")
   const [brainwaveData, setBrainwaveData] = useState<any>(null)
-
-  // Hook para control por gestos - integración mínima
-  const { 
-    headGesture, 
-    isEnabled: gestureEnabled, 
-    enableGestureControl, 
-    disableGestureControl 
-  } = useHeadGesture()
 
   const {
     isAuthenticated,
@@ -32,17 +23,6 @@ export default function HomeScreen() {
     changeMoodPlaylist,
     currentPlaylist,
   } = useSpotify()
-
-  // Controlar cambios de canción con movimientos de cabeza
-  useEffect(() => {
-    if (gestureEnabled && headGesture && isAuthenticated) {
-      if (headGesture === 'right') {
-        skipToNext()
-      } else if (headGesture === 'left') {
-        skipToPrevious()
-      }
-    }
-  }, [headGesture, gestureEnabled, isAuthenticated])
 
   // Función para obtener datos EEG del servidor
   const fetchBrainwaveData = async () => {
@@ -63,9 +43,14 @@ export default function HomeScreen() {
     
     const { delta, theta, alpha, beta, gamma } = data
     
-    const focusScore = beta + gamma
-    const energyScore = beta + alpha  
-    const chillScore = alpha + theta
+    // Según tus especificaciones:
+    // Focus - Beta y Gamma de 13-100 Hz
+    // Energy - Beta y Alpha de 8 a 30 Hz  
+    // Chill - Alpha y Theta de 4 a 13 Hz
+    
+    const focusScore = beta + gamma      // 13-100 Hz
+    const energyScore = beta + alpha     // 8-30 Hz  
+    const chillScore = alpha + theta     // 4-13 Hz
     
     const scores = {
       focus: focusScore,
@@ -93,6 +78,7 @@ export default function HomeScreen() {
       const detectedMood = determineMoodFromBrainwaves(brainwaveData)
       
       if (detectedMood !== currentMood) {
+        console.log(`🎵 Cambiando automáticamente a: ${detectedMood}`)
         setCurrentMood(detectedMood)
         changeMoodPlaylist(detectedMood)
       }
@@ -115,26 +101,19 @@ export default function HomeScreen() {
   }
 
   const handleMoodChange = (mood: MoodType) => {
-    if (!isConnected) {
+    if (!isConnected) { // Solo permitir cambio manual si NO está conectado el EEG
       setCurrentMood(mood)
-    }
-  }
-
-  // Función simple para toggle del control por gestos
-  const toggleGestureControl = () => {
-    if (gestureEnabled) {
-      disableGestureControl()
-    } else {
-      enableGestureControl()
     }
   }
 
   // Calcular intensidad para BrainStateDisplay
   const calculateIntensity = () => {
     if (!brainwaveData || !isConnected) return 75
+    
     if (brainwaveData.concentration) {
       return Math.min(brainwaveData.concentration * 100, 100)
     }
+    
     return 75
   }
 
@@ -179,25 +158,6 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Control por gestos - Tarjeta simple agregada */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Head Gesture Control</Text>
-          <Text style={styles.cardDescription}>
-            {gestureEnabled 
-              ? "Tilt head LEFT/RIGHT to change songs" 
-              : "Enable to control music with head movements"
-            }
-          </Text>
-          <TouchableOpacity 
-            style={[styles.button, gestureEnabled && styles.gestureButtonActive]}
-            onPress={toggleGestureControl}
-          >
-            <Text style={styles.buttonText}>
-              {gestureEnabled ? "Disable Gestures" : "Enable Gestures"}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
         {/* Mood selector */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Mental State</Text>
@@ -215,7 +175,7 @@ export default function HomeScreen() {
                   isConnected && styles.moodButtonAuto
                 ]}
                 onPress={() => handleMoodChange(mood)}
-                disabled={isConnected}
+                disabled={isConnected} // Deshabilitar botones cuando EEG está conectado
               >
                 <Text style={styles.moodButtonText}>
                   {mood === "focus" ? "🎯 Focus" : mood === "chill" ? "😌 Chill" : "⚡ Energy"}
@@ -226,6 +186,7 @@ export default function HomeScreen() {
           </View>
           {isConnected && (
             <Text style={styles.autoModeNote}>
+              
             </Text>
           )}
         </View>
@@ -292,9 +253,6 @@ const styles = StyleSheet.create({
   artistName: { fontSize: 14, color: "#9ca3af", textAlign: "center", marginBottom: 16 },
   spotifyButton: { backgroundColor: "#1db954", paddingVertical: 16, borderRadius: 12, alignItems: "center" },
   button: { backgroundColor: "#06b6d4", paddingVertical: 16, borderRadius: 12, alignItems: "center" },
-  gestureButtonActive: { 
-    backgroundColor: "#10b981" 
-  },
   buttonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
   statusRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginBottom: 16 },
   statusDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: "#6b7280", marginRight: 8 },
