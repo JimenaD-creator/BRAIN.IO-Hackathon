@@ -13,7 +13,6 @@
   NeuroTune eliminates this friction by syncing EEG brainwave patterns with Spotify playlists 
   in real time, adapting music to your focus, relaxation, or energy levels.
 
-|
   ## ⚙️ Tech Stack
 
   - Frontend (App): React Native (TypeScript, Expo)
