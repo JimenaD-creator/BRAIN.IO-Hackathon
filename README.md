@@ -42,7 +42,7 @@
 
   1. Clone the repository:
      ```
-     git clone https://github.com/<your-username>/neurotune.git
+     git clone https://github.com/JimenaD-creator/BRAIN.IO-Hackathon.git
      cd neurotune
      ```
 
@@ -53,16 +53,7 @@
      npx expo start
      ```
 
-  3. Install dependencies (Python Backend):
-     ```
-     cd backend
-     python -m venv venv
-     source venv/bin/activate  # or venv\Scripts\activate on Windows
-     pip install -r requirements.txt
-     python app.py
-     ```
-
-  4. Configure Spotify API:
+  3. Configure Spotify API:
      - Create a new app on [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
      - Copy your Client ID and Client Secret into a `.env` file inside the backend directory:
        ```
