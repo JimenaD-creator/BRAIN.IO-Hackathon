@@ -43,7 +43,7 @@
   1. Clone the repository:
      ```
      git clone https://github.com/JimenaD-creator/BRAIN.IO-Hackathon.git
-     cd neurotune
+     cd BRAIN.IO-Hackathon
      ```
 
   2. Install dependencies (React Native App):
